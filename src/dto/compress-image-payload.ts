@@ -6,8 +6,8 @@ export const CompressImageDto = z.object({
     z
       .number({ message: "The quality must be a positive number." })
       .positive({ message: "The quality must be a positive number." })
-      .min(1, "the quality must be bigger than 0%")
-      .max(90, { message: "The quality mustn't be bigger than 90%." })
+      .min(10, "the quality must be bigger than 0%")
+      .max(100, { message: "The quality mustn't be bigger than 90%." })
   ),
   format: z.enum(["jpg", "png", "webp"], {
     message: "The format must be either 'jpg' or 'png` or `webp`.",

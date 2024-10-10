@@ -6,12 +6,13 @@ END $$;
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "queue" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"fileId" uuid NOT NULL,
 	"queueId" varchar(256),
-	"originalName" text,
-	"status" "status",
+	"originalName" text NOT NULL,
+	"compressedName" text NOT NULL,
+	"status" "status" NOT NULL,
 	"url" text NOT NULL,
 	"createdAt" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "queue_fileId_unique" UNIQUE("fileId"),
+	"processdAt" timestamp,
+	"completedAt" timestamp,
 	CONSTRAINT "queue_url_unique" UNIQUE("url")
 );

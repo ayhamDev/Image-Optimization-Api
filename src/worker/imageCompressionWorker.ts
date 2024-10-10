@@ -1,17 +1,38 @@
-import { Worker } from "bullmq";
+import "dotenv/config";
+import { Worker, WorkerOptions } from "bullmq";
 import { Initdatabase } from "db/index.db";
 import { queueTable } from "db/schema";
-import { config } from "dotenv";
 import { eq } from "drizzle-orm";
 import { existsSync, mkdirSync } from "fs";
 import sharp from "sharp";
+import { CleanPromise } from "utils/cleanPromise";
 import { Sleep } from "utils/sleep";
 
-config();
+const ImageWorkerOptions: WorkerOptions = {
+  autorun: false,
+  concurrency: Number(process.env.IMAGE_CONCURRENCY) || 1,
+  limiter: {
+    duration: 1000 * 60,
+    max: Number(process.env.IMAGE_COMPRESS_EVERY_MIN_LIMIT) || 10,
+  },
+  useWorkerThreads: true,
+  workerThreadsOptions: {
+    env: process.env,
+  },
+  workerForkOptions: {
+    env: process.env,
+  },
+  connection: {
+    host: process.env.REDIS_HOST,
+    port: process.env.REDIS_PORT as unknown as number,
+    password: process.env.REDIS_PASSWORD || undefined,
+  },
+};
 
 const imageCompressionWorker = new Worker(
   "image-compression",
   async (job) => {
+    // sleep for 1s
     await Sleep(1000);
 
     const { id, imageBuffer: imageBufferBase64, compressImageDto } = job.data;
@@ -36,7 +57,7 @@ const imageCompressionWorker = new Worker(
 
     if (compressImageDto.format === "png") {
       ImageProcess.png({
-        quality: compressImageDto.quality,
+        quality: 100,
         adaptiveFiltering: true,
         compressionLevel: 9,
         palette: true,
@@ -60,54 +81,46 @@ const imageCompressionWorker = new Worker(
     return { outputFilePath };
   },
   {
-    autorun: false,
-    concurrency: 5,
-    limiter: {
-      duration: 1000 * 60,
-      max: 100,
-    },
-    useWorkerThreads: true,
-    workerThreadsOptions: {
-      env: process.env,
-    },
-    workerForkOptions: {
-      env: process.env,
-    },
-    connection: {
-      host: process.env.REDIS_HOST,
-      port: process.env.REDIS_PORT as unknown as number,
-      password: process.env.REDIS_PASSWORD || undefined,
-    },
+    ...ImageWorkerOptions,
   }
 );
 
 imageCompressionWorker.on("active", async (job) => {
   const db = await Initdatabase();
-  await db
-    .update(queueTable)
-    .set({
-      status: "Processing",
-    })
-    .where(eq(queueTable.queueId, job.id as string));
+  return await CleanPromise(
+    db
+      .update(queueTable)
+      .set({
+        status: "Processing",
+        processdAt: new Date(),
+      })
+      .where(eq(queueTable.queueId, job.id as string))
+  );
 });
 imageCompressionWorker.on("completed", async (job) => {
   const db = await Initdatabase();
-  await db
-    .update(queueTable)
-    .set({
-      status: "Completed",
-    })
-    .where(eq(queueTable.queueId, job.id as string));
+  return await CleanPromise(
+    db
+      .update(queueTable)
+      .set({
+        status: "Completed",
+        completedAt: new Date(),
+      })
+      .where(eq(queueTable.queueId, job.id as string))
+  );
   // handle the completed
 });
 imageCompressionWorker.on("failed", async (job) => {
   const db = await Initdatabase();
-  await db
-    .update(queueTable)
-    .set({
-      status: "Failed",
-    })
-    .where(eq(queueTable.queueId, job?.id as string));
+  return await CleanPromise(
+    db
+      .update(queueTable)
+      .set({
+        status: "Failed",
+        completedAt: new Date(),
+      })
+      .where(eq(queueTable.queueId, job?.id as string))
+  );
   // handle the completed
 });
 export default imageCompressionWorker;

@@ -1,12 +1,15 @@
 import { zValidator } from "@hono/zod-validator";
 import validateImageMiddleware from "@middleware/validateImage";
 import Variables from "@variables/image";
-import { Queue } from "bullmq";
+import { Job, Queue } from "bullmq";
 import { Initdatabase } from "db/index.db";
 import { queueTable } from "db/schema";
 import { CompressImageDto } from "dto/compress-image-payload";
 import { Hono } from "hono";
 import { serveStatic } from "@hono/node-server/serve-static";
+import { eq } from "drizzle-orm";
+import { CleanPromise } from "utils/cleanPromise";
+import GetJobIndexInQueue from "utils/jobInQueue";
 
 const imageQueue = new Queue("image-compression", {
   connection: {
@@ -53,25 +56,24 @@ image.post(
       compressImageDto,
       id: uuid,
     });
+    const compressedName = `${uuid}.${compressImageDto.format}`;
 
-    const data = await db.insert(queueTable).values({
+    const queueData: typeof queueTable.$inferInsert = {
       queueId: job.id,
-      fileId: uuid,
       status: "Queued",
+      compressedName: compressedName,
       originalName: image.name,
       url: `http://${process.env.DOMAIN}${
         process.env.NODE_ENV !== "production" ? `:${process.env.PORT}` : ""
-      }/image/${uuid}.${compressImageDto.format}`,
-    });
-    return ctx.json({
-      queueId: job.id,
-      status: "Queued",
-      originalName: image.name,
-      url: `http://${process.env.DOMAIN}${
-        process.env.NODE_ENV !== "production" ? `:${process.env.PORT}` : ""
-      }/image/${uuid}.${compressImageDto.format}`,
-    });
+      }/image/${compressedName}`,
+      completedAt: null,
+    };
+
+    await CleanPromise(db.insert(queueTable).values(queueData));
+    const InQueue = await GetJobIndexInQueue(job.id);
+    return ctx.json({ ...queueData, InQueue: InQueue });
   }
 );
 
+export { imageQueue };
 export default image;

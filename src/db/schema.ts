@@ -19,9 +19,11 @@ export const statusEnum = pgEnum("status", [
 export const queueTable = pgTable("queue", {
   id: serial().primaryKey(),
   queueId: varchar({ length: 256 }),
-  originalName: text(),
-  compressedName: text(),
-  status: statusEnum(),
+  originalName: text().notNull(),
+  compressedName: text().notNull(),
+  status: statusEnum().notNull(),
   url: text().unique().notNull(),
   createdAt: timestamp().notNull().defaultNow(),
+  processdAt: timestamp(),
+  completedAt: timestamp(),
 });

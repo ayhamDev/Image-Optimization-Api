@@ -1,5 +1,5 @@
 {
-  "id": "60357941-6a1c-4cee-8ae9-09cc29ade816",
+  "id": "36a44da2-a11f-4985-9a49-256304ed9539",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -14,12 +14,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "fileId": {
-          "name": "fileId",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
         "queueId": {
           "name": "queueId",
           "type": "varchar(256)",
@@ -30,14 +24,20 @@
           "name": "originalName",
           "type": "text",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
+        },
+        "compressedName": {
+          "name": "compressedName",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
         },
         "status": {
           "name": "status",
           "type": "status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "url": {
           "name": "url",
@@ -51,19 +51,24 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "processdAt": {
+          "name": "processdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "completedAt": {
+          "name": "completedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "queue_fileId_unique": {
-          "name": "queue_fileId_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "fileId"
-          ]
-        },
         "queue_url_unique": {
           "name": "queue_url_unique",
           "nullsNotDistinct": false,
