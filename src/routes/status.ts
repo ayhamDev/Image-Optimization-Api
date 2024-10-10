@@ -2,6 +2,7 @@ import { Initdatabase } from "db/index.db";
 import { queueTable } from "db/schema";
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { StatusCodes } from "http-status-codes";
 import GetJobIndexInQueue from "utils/jobInQueue";
 
 const status = new Hono();
@@ -15,7 +16,10 @@ status.get("/:queueId", async (ctx) => {
   });
 
   if (!jobStatus) {
-    return ctx.json({ message: "Status not found", statusCode: 404 }, 404);
+    return ctx.json(
+      { message: "File status not found", statusCode: StatusCodes.NOT_FOUND },
+      StatusCodes.NOT_FOUND
+    );
   }
   const InQueue = await GetJobIndexInQueue(jobStatus.queueId);
 

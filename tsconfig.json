@@ -13,7 +13,12 @@
     "baseUrl": "./src",
     "paths": {
       "@routes/*": ["routes/*"],
+      "@schema": ["db/schema"],
         "@middleware/*": ["middleware/*"],
+        "@utils/*" : ["utils/*"],
+        "@cron/*" : ["cron/*"],
+        "@dto/*": ["dto/*"],
+        "@worker/*" : ["worker/*"],
         "@variables/*": ["variables/*"]
     }
   }

@@ -57,16 +57,14 @@ image.post(
       id: uuid,
     });
     const compressedName = `${uuid}.${compressImageDto.format}`;
+    console.log();
 
     const queueData: typeof queueTable.$inferInsert = {
       queueId: job.id,
       status: "Queued",
       compressedName: compressedName,
       originalName: image.name,
-      url: `http://${process.env.DOMAIN}${
-        process.env.NODE_ENV !== "production" ? `:${process.env.PORT}` : ""
-      }/image/${compressedName}`,
-      completedAt: null,
+      url: ctx.req.url.replace("compress", compressedName),
     };
 
     await CleanPromise(db.insert(queueTable).values(queueData));
@@ -74,6 +72,5 @@ image.post(
     return ctx.json({ ...queueData, InQueue: InQueue });
   }
 );
-
 export { imageQueue };
 export default image;
