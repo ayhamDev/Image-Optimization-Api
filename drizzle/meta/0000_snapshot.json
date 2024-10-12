@@ -1,5 +1,5 @@
 {
-  "id": "36a44da2-a11f-4985-9a49-256304ed9539",
+  "id": "ca998ad5-17c8-4857-a3bc-56ce565ca4dd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -17,6 +17,13 @@
         "queueId": {
           "name": "queueId",
           "type": "varchar(256)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "type",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": false
         },
@@ -80,6 +87,14 @@
     }
   },
   "enums": {
+    "public.type": {
+      "name": "type",
+      "schema": "public",
+      "values": [
+        "image",
+        "video"
+      ]
+    },
     "public.status": {
       "name": "status",
       "schema": "public",

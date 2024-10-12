@@ -21,11 +21,11 @@ status.get("/:queueId", async (ctx) => {
       StatusCodes.NOT_FOUND
     );
   }
-  const InQueue = await GetJobIndexInQueue(jobStatus.queueId);
+  // const InQueue = await GetJobIndexInQueue(jobStatus.queueId);
 
   return ctx.json({
     ...jobStatus,
-    InQueue: InQueue, // 1-based index or "N/A" if not found in waiting state
+    // InQueue: InQueue, // 1-based index or "N/A" if not found in waiting state
   }); // Return the status and other relevant data
 });
 export default status;

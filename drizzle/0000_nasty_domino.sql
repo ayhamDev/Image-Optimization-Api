@@ -1,4 +1,10 @@
 DO $$ BEGIN
+ CREATE TYPE "public"."type" AS ENUM('image', 'video');
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
+DO $$ BEGIN
  CREATE TYPE "public"."status" AS ENUM('Queued', 'Processing', 'Completed', 'Failed');
 EXCEPTION
  WHEN duplicate_object THEN null;
@@ -7,6 +13,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS "queue" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"queueId" varchar(256),
+	"type" "type",
 	"originalName" text NOT NULL,
 	"compressedName" text NOT NULL,
 	"status" "status" NOT NULL,

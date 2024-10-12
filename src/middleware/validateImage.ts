@@ -41,7 +41,9 @@ const validateImageMiddleware = async (ctx: Context, next: Next) => {
   )
     return ctx.json(
       {
-        message: "Image resolution must not exceed 4K (3840x2160).",
+        message: `Image resolution must not exceed ${
+          process.env.IMAGE_MAX_WIDTH || 3840
+        }x${process.env.IMAGE_MAX_HEIGHT || 2160}`,
         statusCode: StatusCodes.BAD_REQUEST,
       },
       StatusCodes.BAD_REQUEST

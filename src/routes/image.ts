@@ -1,36 +1,30 @@
+import { serveStatic } from "@hono/node-server/serve-static";
 import { zValidator } from "@hono/zod-validator";
 import validateImageMiddleware from "@middleware/validateImage";
 import Variables from "@variables/image";
-import { Job, Queue } from "bullmq";
+import { Queue } from "bullmq";
 import { Initdatabase } from "db/index.db";
 import { queueTable } from "db/schema";
 import { CompressImageDto } from "dto/compress-image-payload";
 import { Hono } from "hono";
-import { serveStatic } from "@hono/node-server/serve-static";
-import { eq } from "drizzle-orm";
 import { CleanPromise } from "utils/cleanPromise";
 import GetJobIndexInQueue from "utils/jobInQueue";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto"; // Ensure to import crypto for generating UUIDs
 
 const imageQueue = new Queue("image-compression", {
+  defaultJobOptions: {
+    attempts: 0,
+  },
   connection: {
     host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT as unknown as number,
+    port: Number(process.env.REDIS_PORT), // Cast to number
     password: process.env.REDIS_PASSWORD || undefined,
   },
 });
 
 const image = new Hono<{ Variables: Variables }>();
-
-image.get(
-  "/:path",
-  (ctx, next) => {
-    ctx.header("Cache-Control", "public, max-age=86400"); // Cache for 1 day (86400 seconds)
-    next();
-  },
-  serveStatic({
-    rewriteRequestPath: (path) => path.replace(/^\/image/, "temp"),
-  })
-);
 
 image.post(
   "/compress",
@@ -42,35 +36,42 @@ image.post(
     const compressImageDto = ctx.req.valid("form");
     const image = ctx.get("image");
 
-    // Get the image as a Buffer or ArrayBuffer
-    const imageBuffer = Buffer.from(await image.arrayBuffer());
+    // Create a directory for the queue if it doesn't exist
+    if (!fs.existsSync("temp")) {
+      fs.mkdirSync("temp", { recursive: true });
+    }
 
-    // Convert imageBuffer to Base64 string
-    const imageBase64 = imageBuffer.toString("base64");
+    // Generate a unique filename and save the image
+    const uuid = crypto.randomUUID();
+    const imagePath = path.join("temp", `${uuid}-${image.name}`);
+
+    // Write the image file to the temp directory
+    const imageBuffer = Buffer.from(await image.arrayBuffer());
+    fs.writeFileSync(imagePath, imageBuffer);
 
     // Add the image compression job to the queue
-    const uuid = crypto.randomUUID();
-
-    const job = await imageQueue.add("compress", {
-      imageBuffer: imageBase64, // Send the Base64 encoded image
+    const job = await imageQueue.add("image-compression", {
+      imagePath, // Send the file path instead of Base64
       compressImageDto,
       id: uuid,
     });
+
     const compressedName = `${uuid}.${compressImageDto.format}`;
-    console.log();
 
     const queueData: typeof queueTable.$inferInsert = {
       queueId: job.id,
       status: "Queued",
       compressedName: compressedName,
       originalName: image.name,
-      url: ctx.req.url.replace("compress", compressedName),
+      url: ctx.req.url.replace("image/compress", `public/${compressedName}`),
     };
 
     await CleanPromise(db.insert(queueTable).values(queueData));
-    const InQueue = await GetJobIndexInQueue(job.id);
+    const InQueue = await GetJobIndexInQueue("image-compression", job.id);
+
     return ctx.json({ ...queueData, InQueue: InQueue });
   }
 );
+
 export { imageQueue };
 export default image;

@@ -7,6 +7,9 @@ import { existsSync, mkdirSync } from "fs";
 import sharp from "sharp";
 import { CleanPromise } from "utils/cleanPromise";
 import { Sleep } from "utils/sleep";
+import fs from "fs/promises"; // Import fs/promises to handle file operations
+import { z } from "zod";
+import { CompressImageDto } from "@dto/compress-image-payload";
 
 const ImageWorkerOptions: WorkerOptions = {
   autorun: false,
@@ -32,11 +35,19 @@ const ImageWorkerOptions: WorkerOptions = {
 const imageCompressionWorker = new Worker(
   "image-compression",
   async (job) => {
-    // sleep for 1s
+    // Sleep for 1 second
     await Sleep(1000);
 
-    const { id, imageBuffer: imageBufferBase64, compressImageDto } = job.data;
-    const imageBuffer = Buffer.from(imageBufferBase64, "base64");
+    const {
+      id,
+      imagePath,
+      compressImageDto,
+    }: {
+      id: string;
+      imagePath: string;
+      compressImageDto: z.infer<typeof CompressImageDto>;
+    } = job.data; // Use imagePath instead of imageBuffer
+    const imageBuffer = await fs.readFile(imagePath); // Read the image file
 
     const ImageProcess = sharp(imageBuffer, {
       animated: compressImageDto.format === "webp",
@@ -71,14 +82,18 @@ const imageCompressionWorker = new Worker(
         alphaQuality: compressImageDto.quality,
       });
     }
+
+    // Ensure the temp directory exists
     if (!existsSync("temp")) {
       mkdirSync("temp", { recursive: true });
     }
+
     const outputFilePath = `temp/${id}.${compressImageDto.format}`;
 
+    // Write the processed image to the specified output file
     await ImageProcess.toFile(outputFilePath);
 
-    return { outputFilePath };
+    return { imagePath };
   },
   {
     ...ImageWorkerOptions,
@@ -97,9 +112,14 @@ imageCompressionWorker.on("active", async (job) => {
       .where(eq(queueTable.queueId, job.id as string))
   );
 });
+
 imageCompressionWorker.on("completed", async (job) => {
   const db = await Initdatabase();
-  return await CleanPromise(
+
+  // Get the output file path to remove it later
+  const { imagePath } = job.returnvalue;
+
+  await CleanPromise(
     db
       .update(queueTable)
       .set({
@@ -108,10 +128,15 @@ imageCompressionWorker.on("completed", async (job) => {
       })
       .where(eq(queueTable.queueId, job.id as string))
   );
-  // handle the completed
+
+  // Delete the processed image file
+  await CleanPromise(fs.unlink(imagePath));
 });
+
 imageCompressionWorker.on("failed", async (job) => {
   const db = await Initdatabase();
+  const { imagePath } = job?.data;
+
   return await CleanPromise(
     db
       .update(queueTable)
@@ -121,6 +146,8 @@ imageCompressionWorker.on("failed", async (job) => {
       })
       .where(eq(queueTable.queueId, job?.id as string))
   );
-  // handle the completed
+  // Handle the failed job here if necessary
+  await CleanPromise(fs.unlink(imagePath));
 });
+
 export default imageCompressionWorker;

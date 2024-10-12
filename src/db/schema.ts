@@ -15,10 +15,12 @@ export const statusEnum = pgEnum("status", [
   "Completed",
   "Failed",
 ]);
+export const queueEnum = pgEnum("type", ["image", "video"]);
 
 export const queueTable = pgTable("queue", {
   id: serial().primaryKey(),
   queueId: varchar({ length: 256 }),
+  type: queueEnum(),
   originalName: text().notNull(),
   compressedName: text().notNull(),
   status: statusEnum().notNull(),

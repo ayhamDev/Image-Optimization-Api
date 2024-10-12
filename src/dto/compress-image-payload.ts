@@ -21,7 +21,12 @@ export const CompressImageDto = z.object({
       .positive({
         message: "The Width must be a positive number.",
       })
-      .max(3840, "The width can't be bigger than 3840px")
+      .max(
+        Number(process.env.IMAGE_MAX_WIDTH || 3840),
+        `The width can't be bigger than ${Number(
+          process.env.IMAGE_MAX_WIDTH || 2160
+        )}px.`
+      )
       .optional() // Make width optional
   ),
   height: z.preprocess(
@@ -33,7 +38,12 @@ export const CompressImageDto = z.object({
       .positive({
         message: "The height must be a positive number.",
       })
-      .max(2160, "The height can't be bigger than 2160px.")
+      .max(
+        Number(process.env.IMAGE_MAX_HEIGHT || 2160),
+        `The height can't be bigger than ${Number(
+          process.env.IMAGE_MAX_HEIGHT || 2160
+        )}px.`
+      )
       .optional() // Make height optional
   ),
 });
